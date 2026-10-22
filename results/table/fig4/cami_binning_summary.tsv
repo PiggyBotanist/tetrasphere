@@ -1,0 +1,9 @@
+sample	representation	true_bins	total_recovered_fraction	silhouette	eps	min_samples	tier_A_bins	tier_B_bins	tier_C_bins	tier_D_bins	tier_E_bins	tier_F_bins
+cami_toy_low	baseline	23	0.0	0.9096576188764233	1.0	5	0	0	0	0	0	0
+cami_toy_low	comebin	23	0.0	0.5581689869784451	3.0	3	0	0	0	0	0	0
+cami_toy_low	genome	23	0.043478260869565216	0.748192548751831	1.0	5	0	0	1	0	0	0
+cami_toy_low	fragment	23	0.0	0.8019985556602478	1.5	10	0	0	0	0	0	0
+cami_toy_medium_m1_s001	baseline	22	0.045454545454545456	0.8924598548332928	1.5	5	0	0	0	0	0	1
+cami_toy_medium_m1_s001	comebin	22	0.0	0.89307155528207	1.0	5	0	0	0	0	0	0
+cami_toy_medium_m1_s001	genome	22	0.0	0.7787876725196838	1.5	3	0	0	0	0	0	0
+cami_toy_medium_m1_s001	fragment	22	0.045454545454545456	0.870312511920929	1.5	10	0	0	0	0	0	1
