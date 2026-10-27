@@ -77,7 +77,6 @@ def main() -> None:
     model = Manifold(**model_config).to(device)
     checkpoint.load_weights(ckpt_path, model, device)
     model.eval()
-    scale = float(model.scale().detach().cpu())
 
     split_data = hdf5.load(genome_split_file)
     feature_by_id: dict[str, np.ndarray] = {}
@@ -96,7 +95,7 @@ def main() -> None:
         za = model.encode(torch.from_numpy(feature_a).float().to(device))
         zb = model.encode(torch.from_numpy(feature_b).float().to(device))
         cos_sim = torch.nn.functional.cosine_similarity(za, zb, dim=-1).cpu().numpy()
-    tetra_pred = (1.0 - cos_sim) / scale
+    tetra_pred = 1.0 - cos_sim
 
     # Step 3: Metrics + scatter
     m_tetra = aggregate_metrics(tetra_pred, true_dist)

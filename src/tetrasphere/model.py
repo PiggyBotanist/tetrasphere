@@ -52,8 +52,6 @@ class Manifold(BaseModel):
         self.blocks = nn.ModuleList([ResidualBlock(dim_hidden, dropout) for _ in range(layers)])
         self.output = nn.Linear(dim_hidden, dim_output)
 
-        self.log_scale = nn.Parameter(torch.zeros(()))
-
     @property
     def config(self) -> dict[str, object]:
         return {
@@ -64,10 +62,6 @@ class Manifold(BaseModel):
             "dropout":    self.dropout,
         }
         
-    def scale(self) -> Tensor:
-        """Global scalar to tree distance (learnable, softplus > 0)."""
-        return F.softplus(self.log_scale)
-
     def encode(self, x: Tensor) -> Tensor:
         """Emebedding for feature vector"""
         x = self.input(x)
@@ -79,7 +73,6 @@ class Manifold(BaseModel):
         return {
             "embed_a": self.encode(batch["feature_a"]),
             "embed_b": self.encode(batch["feature_b"]),
-            "scale":   self.scale(),
         }
 
 # =================================================================
@@ -164,10 +157,6 @@ class PhylogenyModel(BaseModel):
             x = self.denoiser(x)
         return self.manifold.encode(x)
 
-    def scale(self) -> Tensor:
-        """Global scale relating embedding-space distance to tree distance."""
-        return self.manifold.scale()
-
     @property
     def config(self) -> dict[str, object]:
         return {
@@ -191,12 +180,10 @@ class PhylogenyModel(BaseModel):
                 "denoised_b": denoised_b,
                 "embed_a":    self.manifold.encode(denoised_a),
                 "embed_b":    self.manifold.encode(denoised_b),
-                "scale":      self.scale(),
             }
         return {
             "embed_a": self.manifold.encode(batch["feature_a"]),
             "embed_b": self.manifold.encode(batch["feature_b"]),
-            "scale":   self.scale(),
         }
 
 # =================================================================
@@ -215,14 +202,13 @@ def full_validation(model: Manifold | PhylogenyModel, loader: DataLoader, device
             # Model pass
             batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
             output = model(batch)
-            scale = output["scale"]
             embed_a, embed_b = output["embed_a"], output["embed_b"]
 
             # Root and Pairwise Distance
             cos_sim = F.cosine_similarity(embed_a, embed_b, dim=-1)
-            pairwise_pred.append(((1.0 - cos_sim) / scale).cpu().numpy())
+            pairwise_pred.append((1.0 - cos_sim).cpu().numpy())
             pairwise_label.append(batch["pairwise_distaince"].cpu().numpy())
-            root_pred.append((torch.cat([embed_a.norm(dim=-1), embed_b.norm(dim=-1)]) / scale).cpu().numpy())
+            root_pred.append(torch.cat([embed_a.norm(dim=-1), embed_b.norm(dim=-1)]).cpu().numpy())
             root_label.append(torch.cat([batch["root_distance_a"], batch["root_distance_b"]]).cpu().numpy())
 
     pairwise_metrics    = aggregate_metrics(np.concatenate(pairwise_pred), np.concatenate(pairwise_label), 1e-6)

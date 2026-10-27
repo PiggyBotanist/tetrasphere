@@ -58,14 +58,14 @@ def embed_raw(model: Manifold, feature_137: np.ndarray, device: torch.device) ->
     with torch.no_grad():
         return model.encode(torch.from_numpy(feature_137[:, :-1]).float().to(device)).cpu().numpy()
 
-def validate_fold_length(model: Manifold, scale: float, fragment_eval: dict, device: torch.device) -> dict[str, float]:
+def validate_fold_length(model: Manifold, fragment_eval: dict, device: torch.device) -> dict[str, float]:
     feature, pair, pair_dist, root_distance = fragment_eval["feature"], fragment_eval["pair"], fragment_eval["pair_dist"], fragment_eval["root_distance"]
     embed = embed_raw(model, feature.astype(np.float32), device)
     a, b = pair[:, 0], pair[:, 1]
     za, zb = embed[a], embed[b]
     cos_sim = np.sum(za * zb, axis=1) / (np.linalg.norm(za, axis=1) * np.linalg.norm(zb, axis=1))
-    pred_pairwise = (1.0 - cos_sim) / scale
-    pred_root = np.concatenate([np.linalg.norm(za, axis=1), np.linalg.norm(zb, axis=1)]) / scale
+    pred_pairwise = 1.0 - cos_sim
+    pred_root = np.concatenate([np.linalg.norm(za, axis=1), np.linalg.norm(zb, axis=1)])
     true_root = np.concatenate([root_distance[a], root_distance[b]])
 
     m_pair = aggregate_metrics(pred_pairwise, pair_dist)
@@ -96,11 +96,10 @@ def main() -> None:
             model = Manifold(**cfg["model_config"]).to(device)
             checkpoint.load_weights(ckpt_path, model, device)
             model.eval()
-            scale = float(model.scale().detach().cpu())
 
-            metrics = validate_fold_length(model, scale, fragment_eval, device)
+            metrics = validate_fold_length(model, fragment_eval, device)
             logger.info(f"  {fold_name}: {metrics}")
-            rows.append({"fold": fold_name, "length": length, "scale": scale, **metrics})
+            rows.append({"fold": fold_name, "length": length, **metrics})
 
     df = pd.DataFrame(rows)
     output_path = config.result_table / args.experiment / f"{args.label}_noDenoiser_validation.tsv"

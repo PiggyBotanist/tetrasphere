@@ -54,11 +54,11 @@ def embed_no_denoiser(model: Manifold, feature_137: np.ndarray, device: torch.de
         return model.encode(torch.from_numpy(feature_137[:, :-1]).float().to(device)).cpu().numpy()
 
 
-def pairwise_distortion(embed: np.ndarray, scale: float, pair: np.ndarray, pair_dist: np.ndarray) -> float:
+def pairwise_distortion(embed: np.ndarray, pair: np.ndarray, pair_dist: np.ndarray) -> float:
     a, b = pair[:, 0], pair[:, 1]
     za, zb = embed[a], embed[b]
     cos_sim = np.sum(za * zb, axis=1) / (np.linalg.norm(za, axis=1) * np.linalg.norm(zb, axis=1))
-    pred = (1.0 - cos_sim) / scale
+    pred = 1.0 - cos_sim
     return aggregate_metrics(pred, pair_dist)["mean_distortion"]
 
 
@@ -77,14 +77,12 @@ def main() -> None:
     genome_model = Manifold(**checkpoint.load_config(genome_ckpt)["model_config"]).to(device)
     checkpoint.load_weights(genome_ckpt, genome_model, device)
     genome_model.eval()
-    genome_scale = float(genome_model.scale().detach().cpu())
 
     fragment_ckpt = checkpoint.find(config.result_checkpoint / args.domain / fragment_label / fold_name, None)
     fragment_model = PhylogenyModel(**checkpoint.load_config(fragment_ckpt)["model_config"]).to(device)
     checkpoint.load_weights(fragment_ckpt, fragment_model, device)
     fragment_model.eval()
     fragment_model.stage("fragment")
-    fragment_scale = float(fragment_model.scale().detach().cpu())
 
     rows = []
     for length in LENGTHS:
@@ -93,11 +91,11 @@ def main() -> None:
         feature, pair, pair_dist = ev["feature"].astype(np.float32), ev["pair"], ev["pair_dist"]
 
         embed_noDenoiser = embed_no_denoiser(genome_model, feature, device)
-        no_denoiser_distortion = pairwise_distortion(embed_noDenoiser, genome_scale, pair, pair_dist)
+        no_denoiser_distortion = pairwise_distortion(embed_noDenoiser, pair, pair_dist)
 
         with torch.no_grad():
             embed_denoiser = fragment_model.embed(torch.from_numpy(feature).to(device), fragment=True).cpu().numpy()
-        denoiser_distortion = pairwise_distortion(embed_denoiser, fragment_scale, pair, pair_dist)
+        denoiser_distortion = pairwise_distortion(embed_denoiser, pair, pair_dist)
 
         logger.info(f"length={length}: no_denoiser_distortion={no_denoiser_distortion:.4f}  with_denoiser_distortion={denoiser_distortion:.4f}")
         rows.append({"length": length, "tetrasphere_no_denoiser": no_denoiser_distortion, "tetrasphere_with_denoiser": denoiser_distortion})

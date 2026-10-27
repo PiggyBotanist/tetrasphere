@@ -69,7 +69,7 @@ def train_fold(fold_name: str, data: dict, eval_loader: DataLoader, args: argpar
     loss_fn   = Phylogeny_Loss()
     optimizer = AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-    config = TrainConfig(
+    train_config = TrainConfig(
         project=        args.experiment,
         label=          f"{args.label}_{fold_name}",
         epochs=         args.epoch,
@@ -81,7 +81,7 @@ def train_fold(fold_name: str, data: dict, eval_loader: DataLoader, args: argpar
         use_wandb=      args.wandb
     )
 
-    trainer = Trainer(model, loss_fn, optimizer, logger, config)
+    trainer = Trainer(model, loss_fn, optimizer, logger, train_config)
     result  = trainer.fit(train_loader, val_loader)
 
     # Step 1: Best CV epoch by lowest validation loss

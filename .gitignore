@@ -1,3 +1,9 @@
 __pycache__/
 *.pyc
 log/
+results/
+# ship only fold_1/epoch_50 for the main ar53/bac120 models
+checkpoints/**
+!checkpoints/**/
+!checkpoints/ar53/*/fold_1/epoch_50.pt
+!checkpoints/bac120/*/fold_1/epoch_50.pt
