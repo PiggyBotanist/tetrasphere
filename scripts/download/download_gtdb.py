@@ -3,7 +3,7 @@ Function: downloads 3 things from GTDB per type (archaea or bacteria).
     - The tree: contains nodes and edges with distance.
     - The metadata: contain genome information and accession link to NCBI.
     - The representative genome: contains all leaf representatives.
-
+NOTE: storage of ~200 GB is required for all genomes.
 Usage
 -----
     python project/download/gtdb.py --release 232 --type ar53 bac120

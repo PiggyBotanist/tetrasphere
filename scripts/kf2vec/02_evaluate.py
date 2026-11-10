@@ -13,7 +13,7 @@ Function: evaluates the trained kf2vec pipeline against ground-truth.
 
 Usage
 -----
-    python scripts/kf2vec/02_evaluate.py --domain ar53 --distance-file <ar53_distance.hdf5> --split-file <split.hdf5> --benchmark-folder /bls2/data/gtdb/kf2vec/ar53
+    python scripts/kf2vec/02_evaluate.py --domain ar53 --distance-file <ar53_distance.hdf5> --split-file <split.hdf5> --benchmark-folder <output_folder>
 """
 from __future__ import annotations
 

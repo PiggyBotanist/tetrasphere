@@ -1,9 +1,8 @@
 """
-Stage 2: trains the Denoiser half of PhylogenyModel, per fold, against that SAME fold's own
-stage-1 genome checkpoint (from 03_train_genome.py) loaded frozen into PhylogenyModel.manifold --
-never a different fold's, which would leak across the CV split. Uses a length curriculum
-(blend_weights/build_train_loader in src/tetrasphere/curriculum.py) that shifts sampling weight
-from the longest fragment length toward the shortest over the course of training.
+Stage 2: trains the Denoiser
+    - load initial phase from denoiser, and freeze it.
+    - across the same fold (different fold would leak across split). 
+    - Uses a length curriculum that shifts sampling weight.
 
 Usage
 -----
@@ -100,7 +99,7 @@ def train_fold(
 
     val_loader = DataLoader(ConcatDataset(val_datasets), batch_size=args.batch_size, shuffle=False, num_workers=args.worker)
 
-    # Step 1: This fold's own genome checkpoint (never a different fold's -- avoids CV leakage)
+    # Step 1: This fold's own genome checkpoint
     genome_ckpt_dir = config.result_checkpoint / args.genome_experiment / args.genome_label / fold_name
     genome_ckpt_path = checkpoint.find(genome_ckpt_dir, args.genome_epoch)
     genome_cfg = checkpoint.load_config(genome_ckpt_path)["model_config"]
@@ -170,8 +169,7 @@ def main() -> None:
     if not fold_names:
         raise FileNotFoundError(f"no fold_* checkpoints under {genome_ckpt_root} -- run 03_train_genome.py first.")
 
-    # Step 2: Parent (whole-genome) composition lookup, then every length's fragment datasets --
-    # read once per length total (eval + every fold's train/val), not once per fold.
+    # Step 2: Parent (whole-genome) composition lookup.
     lengths = sorted(set(args.lengths), reverse=True)
     parent_lookup = build_parent_lookup(args.genome_split_file)
     logger.info(f"Parent lookup: {len(parent_lookup)} genomes")
@@ -180,7 +178,7 @@ def main() -> None:
     )
     eval_loader = DataLoader(ConcatDataset(eval_datasets), batch_size=args.batch_size, shuffle=False, num_workers=args.worker)
 
-    # Step 3: Train and evaluate every fold
+    # Step 3: Train and evaluate every fold.
     summary = {}
     for fold_name in fold_names:
         logger.info(f"=== {fold_name} ===")

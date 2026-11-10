@@ -42,7 +42,7 @@ from src.io import tar, fastq, bam
 # ===============================================================
 # Config / URLs
 # ===============================================================
-URL_TOY = "https://s3.ap-northeast-1.wasabisys.com/gigadb-datasets/live/pub/10.5524/100001_101000/100344/ToyTestDatasets.dir/"
+URL_TOY         = "https://s3.ap-northeast-1.wasabisys.com/gigadb-datasets/live/pub/10.5524/100001_101000/100344/ToyTestDatasets.dir/"
 URL_BODYSITE    = "https://frl.publisso.de/data/frl:6425518/"
 URL_ENVIRONMENT = "https://frl.publisso.de/data/frl:6425521/"
 BODYSITES       = {"airskinurogenital": 28, "gastrooral": 19}

@@ -225,13 +225,6 @@ def build_fragment_datasets(
     max_pairs_per_length    : subsample cap per length/split, or None to use every pair.
     seed                    : capped_subset()'s subsampling seed.
     logger                  : logs per-length dataset sizes.
-
-    Returns
-    -------
-    (eval_datasets, train_val_by_fold) -- eval_datasets is one Dataset per length (`lengths`
-    order, shared across every fold); train_val_by_fold[fold] is (train_datasets, val_datasets),
-    each one Dataset per length. The shared eval group is read once per length total, not once
-    per fold.
     """
     eval_datasets: list[Dataset] = []
     train_val_by_fold: dict[str, tuple[list[Dataset], list[Dataset]]] = {fold: ([], []) for fold in fold_names}

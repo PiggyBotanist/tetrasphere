@@ -1,8 +1,5 @@
 """
-Function: takes precomputed distance and kmer, generate a prepare train-test split
-
-Split Strategies:
-    - target pairs: # of pairs for
+Function: takes precomputed distance and kmer, generate a train-test split for genome
 
 Usage
 -----

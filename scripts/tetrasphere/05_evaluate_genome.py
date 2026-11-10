@@ -98,7 +98,7 @@ def main() -> None:
     output_path = config.result_table / args.experiment / f"{args.label}_validation.tsv"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(output_path, sep="\t", index=False)
-    logger.info(f"Summary -> {output_path}")
+    logger.info(f"Summary saved to {output_path}")
 
 if __name__ == "__main__":
     main()

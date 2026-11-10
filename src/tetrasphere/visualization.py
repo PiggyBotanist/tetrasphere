@@ -6,11 +6,12 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
+# Define some color
 PALETTE = px.colors.qualitative.Alphabet
 OTHER_COLOR = "#999999" 
 
 # =================================================================
-# Dimensionality reduction
+# Dimensionality Reduction
 # =================================================================
 def reduce_to_3d(embedding: np.ndarray, method: str, n_components: int = 3, seed: int = 42) -> np.ndarray:
     """Reduce (n_samples, dim_output) embeddings to (n_samples, n_components) via pca/umap/tsne. n_components=2 for a 2D scatter instead of 3D."""
@@ -37,22 +38,13 @@ def reduce_to_2d_mds(embedding: np.ndarray, seed: int = 42, metric: str = "cosin
 # =================================================================
 def make_tabbed_figure(coords: np.ndarray, df: pd.DataFrame, color_modes: list[str], method: str, id_column: str = "id", color_map: dict[str, str] | None = None) -> go.Figure:
     """
-    One 2D or 3D scatter figure (based on coords.shape[1]) with a dropdown ("tabs") to switch which
-    column of df colors the points. Every mode's traces are pre-added (one trace per category, so each
-    stays individually legend-clickable) and toggled via visibility rather than rebuilt on each dropdown
-    selection.
-
-    color_map optionally pins specific category values to specific colors (e.g. semantic
-    correct/misclassified/unclassified colors), overriding the palette for just those values.
+    One 2D or 3D scatter figure. Commonly used for building figures and visualization.
     """
     is_3d = coords.shape[1] == 3
     fig = go.Figure()
     trace_counts = []
     for mode in color_modes:
         counts_per_cat = df[mode].astype(str).value_counts()
-        # Draw order: largest category first (bottom layer) down to smallest (top layer), so a handful of
-        # rare-but-important points (e.g. misclassified) aren't hidden under a wall of majority-class points.
-        # "other" always drawn dead last regardless of its size, so it reads as background.
         categories = sorted(counts_per_cat.index, key=lambda c: (c == "other", -counts_per_cat[c]))
         palette_i = 0
         for cat in categories:

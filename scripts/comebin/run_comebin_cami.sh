@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Runs COMEBin's own, unmodified pipeline on one CAMI sample. COMEBin is a separate tool, not
-# vendored here -- install it first: https://github.com/ziyewang/COMEBin
+# Runs COMEBin's own, unmodified pipeline on one CAMI sample. COMEBin is a separate tool
+# -- install it first: https://github.com/ziyewang/COMEBin
 #
 # Usage
 # -----
@@ -10,10 +10,6 @@
 # <bam_dir>       directory of per-sample-read BAM files COMEBin uses to estimate coverage.
 # <output_dir>    where COMEBin writes comebin_res/ (embeddings.tsv.gz is what later scripts read)
 #                 and data_augmentation/ (per-view coverage, read by src/metagenome/coverage.py).
-#
-# This produces comebin_res/embeddings.tsv.gz -- the embedding compared against Tetrasphere's own
-# embedding in scripts/figures/fig4_cami_binning.py. We do not run COMEBin's own clustering/bin
-# refinement step; only its learned embedding is used for comparison.
 set -euo pipefail
 
 contig_fasta=$1

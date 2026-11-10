@@ -35,12 +35,10 @@ class Kmer:
     # Public
     # -----------------------------------------------------------------
     def vectorize(
-        self, 
-        seq:                    str, 
+        self,
+        seq:                    str,
         include_length:         bool = False,
-        include_dispersion:     bool = False,
-        transform_kmer:         str = None, 
-        transform_dispersion:   bool = False, 
+        transform_kmer:         str = None,
     ) -> np.ndarray:
         """
         Vectorize a single sequence into a canonical k-mer composition vector.
@@ -49,51 +47,40 @@ class Kmer:
         ----------
         seq                   : DNA sequence; any case; non-"ACGT" treated as invalid.
         include_length        : Append log10(sequence length) as a trailing dimension.
-        include_dispersion    : Append phase-invariant positional dispersion per k-mer.
         transform_kmer        : Composition transform to apply (frequency/clr); raw counts if None.
-        transform_dispersion  : Log-transform dispersion before appending; ignored if include_dispersion is False.
         """
-        counts, dispersion, _ = sequence_stats(seq, self.k, self.str_to_ascii, self.weights, self.kmer_to_ckmer, self.dim, include_dispersion)
+        counts = sequence_stats(seq, self.k, self.str_to_ascii, self.weights, self.kmer_to_ckmer, self.dim)
         vector = apply_transform(counts, transform_kmer)
-        if include_dispersion:
-            vector = concat_dispersion(vector, dispersion, transform_dispersion)
         if include_length:
             vector = concat_length(vector, len(seq))
         return vector
 
     def vectorize_fasta(
-        self, 
-        path_fasta:             Path, 
+        self,
+        path_fasta:             Path,
         include_length:         bool = False,
-        include_dispersion:     bool = False,
-        transform_kmer:         str | None = None, 
-        transform_dispersion:   bool = False, 
+        transform_kmer:         str | None = None,
         min_length:             int = 1000
     ) -> np.ndarray:
         """
         Vectorize every record in a FASTA file into one pooled k-mer composition vector.
 
         Composition is pooled by summing raw counts across records before the one
-        transform, so a 2 Mb contig naturally outweighs a 2 kb one. Dispersion is
-        pooled as a length-weighted average per canonical k-mer across records.
+        transform, so a 2 Mb contig naturally outweighs a 2 kb one.
 
         Parameters
         ----------
         path_fasta            : Path to a FASTA file; transparently reads .gz.
         include_length        : Append log10(sequence length) as a trailing dimension.
-        include_dispersion    : Append phase-invariant positional dispersion per k-mer.
         transform_kmer        : Composition transform to apply (frequency/clr); raw counts if None.
-        transform_dispersion  : Log-transform dispersion before appending; ignored if include_dispersion is False.
         min_length            : Records shorter than this are dropped before vectorization.
         """
         records = fasta.load(path_fasta, length_filter=min_length)
         if not records:
             self.logger.warning(f"vectorize_fasta: no records >= min_length={min_length} in {path_fasta}")
 
-        counts, dispersion = pool_stats(records, self.k, self.str_to_ascii, self.weights, self.kmer_to_ckmer, self.dim, include_dispersion)
+        counts = pool_stats(records, self.k, self.str_to_ascii, self.weights, self.kmer_to_ckmer, self.dim)
         vector = apply_transform(counts, transform_kmer)
-        if include_dispersion:
-            vector = concat_dispersion(vector, dispersion, transform_dispersion)
         if include_length:
             vector = concat_length(vector, fasta.get_length(records, per_file=True))
         return vector
@@ -141,38 +128,14 @@ def tokenize(seq: str, k: int, str_to_ascii: torch.Tensor, weights: torch.Tensor
     indices = kmer_to_ckmer[indices]
     return indices.numpy()
 
-def kmer_dispersion(kmer_indices: np.ndarray, dim: int) -> np.ndarray:
-    """
-    Phase-invariant positional dispersion per canonical k-mer.
-
-    Ratio of the variance to the squared mean of the gaps between consecutive
-    occurrences of each k-mer: >1 clustered, ~1 uniform, <1 regular, NaN if fewer
-    than 3 occurrences.
-
-    Parameters
-    ----------
-    kmer_indices : Canonical k-mer index of each valid window, in sequence order.
-    dim          : Number of distinct canonical k-mers.
-    """
-    dispersion = np.full(dim, np.nan, dtype=np.float64)
-    for kappa in range(dim):
-        pos = np.where(kmer_indices == kappa)[0]
-        if len(pos) < 3:
-            continue
-        gaps = np.diff(pos)
-        dispersion[kappa] = gaps.var() / (gaps.mean() ** 2)
-    return dispersion
-
-def sequence_stats(seq: str, k: int, str_to_ascii: torch.Tensor, weights: torch.Tensor, kmer_to_ckmer: torch.Tensor, dim: int, include_dispersion: bool) -> tuple[np.ndarray, np.ndarray, int]:
-    """Tokenize once and return (counts, dispersion, window count) for one sequence; dispersion is None if not requested."""
+def sequence_stats(seq: str, k: int, str_to_ascii: torch.Tensor, weights: torch.Tensor, kmer_to_ckmer: torch.Tensor, dim: int) -> np.ndarray:
+    """Tokenize once and return canonical k-mer counts for one sequence."""
     indices = tokenize(seq, k, str_to_ascii, weights, kmer_to_ckmer)
-    counts = np.bincount(indices, minlength=dim).astype(np.float64)
-    dispersion = kmer_dispersion(indices, dim) if include_dispersion else None
-    return counts, dispersion, len(indices)
+    return np.bincount(indices, minlength=dim).astype(np.float64)
 
-def pool_stats(records: list[SeqRecord], k: int, str_to_ascii: torch.Tensor, weights: torch.Tensor, kmer_to_ckmer: torch.Tensor, dim: int, include_dispersion: bool) -> tuple[np.ndarray, np.ndarray]:
+def pool_stats(records: list[SeqRecord], k: int, str_to_ascii: torch.Tensor, weights: torch.Tensor, kmer_to_ckmer: torch.Tensor, dim: int) -> np.ndarray:
     """
-    Sum canonical k-mer counts across FASTA records, and length-weight-average dispersion per k-mer.
+    Sum canonical k-mer counts across FASTA records.
 
     Parameters
     ----------
@@ -182,27 +145,11 @@ def pool_stats(records: list[SeqRecord], k: int, str_to_ascii: torch.Tensor, wei
     weights            : Positional weight vector for k-mer index encoding.
     kmer_to_ckmer      : Raw k-mer index to canonical k-mer index map.
     dim                : Number of distinct canonical k-mers.
-    include_dispersion : Also pool per-k-mer positional dispersion.
     """
     total_counts = np.zeros(dim, dtype=np.float64)
-    weighted_sum = np.zeros(dim, dtype=np.float64) if include_dispersion else None
-    weight_total = np.zeros(dim, dtype=np.float64) if include_dispersion else None
-
     for record in records:
-        counts, dispersion, n_windows = sequence_stats(str(record.seq), k, str_to_ascii, weights, kmer_to_ckmer, dim, include_dispersion)
-        total_counts += counts
-        if include_dispersion and n_windows > 0:
-            valid = ~np.isnan(dispersion)
-            weighted_sum[valid] += dispersion[valid] * n_windows
-            weight_total[valid] += n_windows
-
-    pooled_dispersion = None
-    if include_dispersion:
-        pooled_dispersion = np.divide(
-            weighted_sum, weight_total,
-            out=np.full(dim, np.nan, dtype=np.float64), where=weight_total > 0,
-        )
-    return total_counts, pooled_dispersion
+        total_counts += sequence_stats(str(record.seq), k, str_to_ascii, weights, kmer_to_ckmer, dim)
+    return total_counts
 
 def apply_transform(counts: np.ndarray, transform: str | None = None) -> np.ndarray:
     """Convert raw k-mer counts into the composition vector named by transform (None=raw, frequency, or clr)."""
@@ -218,12 +165,3 @@ def concat_length(vector: np.ndarray, length: int) -> np.ndarray:
     """Append log10(length) to vector as a trailing dimension."""
     log_length = np.log10(max(length, 1))
     return np.concatenate([vector, np.array([log_length], dtype=vector.dtype)])
-
-def concat_dispersion(vector: np.ndarray, dispersion: np.ndarray, transform_dispersion: bool = False) -> np.ndarray:
-    """Append per-k-mer dispersion to vector, optionally log-transformed so clustered/regular are symmetric around zero."""
-    if transform_dispersion:
-        dispersion = np.log(dispersion + 1e-6)
-        filled = np.nan_to_num(dispersion, nan=0.0)
-    else:
-        filled = np.nan_to_num(dispersion, nan=1.0)
-    return np.concatenate([vector, filled.astype(vector.dtype)])

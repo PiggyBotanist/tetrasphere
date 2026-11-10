@@ -4,10 +4,10 @@ Function: precomputes k-mer composition for fragments
 Attributes inside the .hdf5 file:
     - id: fragment ids ("{genome_id}__f{length}_{index:05d}").
     - feature: k-mer composition (+ log10-length column) per fragment.
-
+Output file named as: {output-prefix}_frag{length}.hdf5
 Usage
 -----
-    python scripts/tetrasphere/00_precompute_kmerFragment.py --domain ar53 --k 4 --transform clr --lengths 50000 25000 10000 5000 2500 1000 --output-prefix /bls2/data/gtdb/feature/fragment_raw/ar53_4mer_clr
+    python scripts/tetrasphere/00_precompute_kmerFragment.py --domain ar53 --k 4 --transform clr --lengths 50000 25000 10000 5000 2500 1000 --output-prefix <output_prefix>
 """
 from __future__ import annotations
 

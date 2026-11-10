@@ -28,18 +28,19 @@ def load_contig_features(sample: str, k: int, transform: str, min_contig_length:
     k                  : k-mer length.
     transform          : k-mer transform (frequency/clr); raw counts if None.
     min_contig_length  : drop contigs shorter than this.
-    include_length     : append log10(contig length) as a trailing feature -- must match how the
-                          checkpoint being evaluated was trained (fragment checkpoints use this;
-                          the whole-genome checkpoint does not). See detect_include_length().
+    include_length     : append log10(contig length) as a trailing feature.
     logger             : logs unmapped/kept contig counts.
     """
+    # Load files
     path_fasta = config.cami_sequence / f"{sample}.fasta.gz"
     path_metadata = config.cami_metadata / f"{sample}.tsv.gz"
 
+    # Load records
     records = fasta.load(path_fasta, length_filter=min_contig_length)
     df_meta = pd.read_csv(path_metadata, sep="\t", compression="gzip")
     map_id_genome = dict(zip(df_meta["#anonymous_gsa_id"], df_meta["genome_id"].astype(str)))
 
+    # Parse into k-mer feature
     kmer = Kmer(k=k, logger=logger)
     ids, feature_list, true_genome, length = [], [], [], []
     n_unmapped = 0
@@ -53,6 +54,7 @@ def load_contig_features(sample: str, k: int, transform: str, min_contig_length:
         true_genome.append(genome)
         length.append(len(record.seq))
 
+    # Return information
     logger.info(f"{sample}: {len(ids)} contigs kept ({n_unmapped} unmapped, dropped), {len(set(true_genome))} true source genomes")
     return {
         "ids":         np.array(ids, dtype=object),
@@ -62,23 +64,25 @@ def load_contig_features(sample: str, k: int, transform: str, min_contig_length:
     }
 
 def load_contig_truth(sample: str, min_contig_length: int) -> pd.DataFrame:
-    """Ground truth only (ids/lengths/labels), no composition features -- for scoring an already-produced bins.tsv."""
+    """Load ground truth table (ids/lengths/labels), no composition features."""
+    # Load files
     path_fasta = config.cami_sequence / f"{sample}.fasta.gz"
     path_metadata = config.cami_metadata / f"{sample}.tsv.gz"
 
+    # Load records
     records = fasta.load(path_fasta, length_filter=min_contig_length)
     df_meta = pd.read_csv(path_metadata, sep="\t", compression="gzip")
     map_id_genome = dict(zip(df_meta["#anonymous_gsa_id"], df_meta["genome_id"].astype(str)))
 
+    # Parse to dataframe
     rows = [{"ids": r.id, "lengths": len(r.seq), "labels": str(map_id_genome[r.id])} for r in records if r.id in map_id_genome]
     return pd.DataFrame(rows)
 
 def load_pretrained_model(experiment: str, label: str, fold: int, epoch: int | None, device: torch.device) -> Manifold | PhylogenyModel:
     """
-    Load a trained checkpoint's weights, ready for eval-only inference. Dispatches on the saved
-    model_config's keys: a genome-scale checkpoint is a standalone Manifold (dim_input/dim_hidden/
-    dim_output/layers), a fragment-scale checkpoint is a PhylogenyModel (dim_clean/dim_fragment/
-    manifold_hidden/denoiser_hidden/...).
+    Load a trained checkpoint.
+        - A genome-scale checkpoint is a standalone Manifold (dim_input/dim_hidden/dim_output/layers)
+        - A fragment-scale checkpoint is a PhylogenyModel (dim_clean/dim_fragment/manifold_hidden/denoiser_hidden/...).
     """
     ckpt_path = checkpoint.find(config.result_checkpoint / experiment / label / f"fold_{fold}", epoch)
     model_config = checkpoint.load_config(ckpt_path)["model_config"]

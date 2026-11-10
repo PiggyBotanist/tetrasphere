@@ -17,7 +17,7 @@ Attributes: label (domain), normalization_constant (the max root-to-tip distance
 
 Usage
 -----
-    python scripts/tetrasphere/00_precompute_distance.py --domain ar53 --output-file /bls2/data/gtdb/feature/ar53_distance.hdf5
+    python scripts/tetrasphere/00_precompute_distance.py --domain ar53 --output-file <output_path>
 """
 from __future__ import annotations
 

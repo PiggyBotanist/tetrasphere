@@ -1,23 +1,18 @@
 """
-Central path configuration. Every path defaults to a layout under DATA_ROOT, overridable via
-environment variables so this repo runs unmodified on a different machine.
-
-    export TETRASPHERE_DATA_ROOT=/path/to/data
-    export TETRASPHERE_RESULT_ROOT=/path/to/results
-
-Defaults below point at this project's own data/results on the machine the paper was produced on;
-override via env vars (or edit directly) elsewhere.
+Central configuration path. Either run in root or export this root path
+> export TETRASPHERE_DATA_ROOT=</path/to/data>
+> export TETRASPHERE_RESULT_ROOT=</path/to/results>
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
-
+import os
 
 class Config:
     def __init__(self) -> None:
+        # Define root
         self.root_project = Path(__file__).resolve().parent
-        self.data_root = Path(os.environ.get("TETRASPHERE_DATA_ROOT", "/bls2/data"))
+        self.data_root = Path(os.environ.get("TETRASPHERE_DATA_ROOT", str(self.root_project / "results")))
         self.result_root = Path(os.environ.get("TETRASPHERE_RESULT_ROOT", str(self.root_project / "results")))
 
         self.root_log = self.root_project / "log"
@@ -39,10 +34,10 @@ class Config:
         self.cami_bam = self.cami_root / "download/bam"
         self.cami_archive = self.cami_root / "archive"
 
-        # kf2vec (external tool's own working directory)
-        self.kf2vec_root = self.data_root / "gtdb/kf2vec"
+        # kf2vec
+        self.kf2vec_root = self.data_root / "kf2vec"
 
-        # RefSeq (gene-level annotations, used only by fig3c_marker_gene_mds.py)
+        # (Optional) RefSeq: (gene-level annotations, used only by figure 3c)
         self.refseq_root = self.data_root / "refseq/download"
         self.refseq_manifest = self.refseq_root / "refseq_downloaded.tsv.gz"
         self.refseq_metadata = self.refseq_root / "metadata"
@@ -53,9 +48,8 @@ class Config:
             "domain": "d__", "phylum": "p__", "class": "c__", "order": "o__",
             "family": "f__", "genus": "g__", "species": "s__",
         }
-
-        # External tool conda environments (override if yours differ)
+        
+        # External conda environments (kf2vec conda environment with their install)
         self.env_kf2vec = os.environ.get("TETRASPHERE_KF2VEC_ENV", "kf2vec")
-
 
 config = Config()

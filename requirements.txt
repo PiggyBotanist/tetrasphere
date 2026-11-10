@@ -12,8 +12,3 @@ tqdm>=4.65
 requests>=2.31
 psutil>=5.9
 wandb>=0.16
-
-# Optional (only for --method umap in scripts/figures/fig3a_taxonomy_tsne.py, and the
-# plotly-based interactive helper in src/tetrasphere/visualization.py / demo.ipynb)
-# umap-learn>=0.5
-# plotly>=5.18

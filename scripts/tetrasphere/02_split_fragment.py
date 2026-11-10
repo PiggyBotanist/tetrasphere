@@ -6,7 +6,7 @@ Function: create .hdf5 with different folds and associate membership of the geno
 
 Usage
 -----
-    python scripts/tetrasphere/02_split_fragment.py --domain ar53 --split-file <split.hdf5> --distance-file <ar53_distance.hdf5> --feature-file-prefix /bls2/data/gtdb/feature/fragment_raw/ar53_4mer_clr --lengths 50000 25000 10000 5000 2500 1000 --output-prefix /bls2/data/gtdb/feature/fragment/ar53_4mer_clr
+    python scripts/tetrasphere/02_split_fragment.py --domain ar53 --split-file <split.hdf5> --distance-file <ar53_distance.hdf5> --feature-file-prefix <input_prefix> --lengths 50000 25000 10000 5000 2500 1000 --output-prefix <output_prefix>
 """
 from __future__ import annotations
 

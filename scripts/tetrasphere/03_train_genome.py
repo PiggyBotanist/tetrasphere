@@ -13,10 +13,11 @@ from __future__ import annotations
 import logging
 import argparse
 import numpy as np
+import pandas as pd
 from pathlib import Path
 import torch
 from torch.optim import AdamW
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 # Custom Import
 import sys
@@ -28,6 +29,7 @@ from src.model.trainer import Trainer, TrainConfig
 from src.tetrasphere.model import Manifold
 from src.tetrasphere.loss import Phylogeny_Loss, eval_phylogeny
 from src.tetrasphere.dataloader import DataLoader_Manifold
+from src.tetrasphere.preprocess import get_taxonomy, strip_genomePrefix
 
 # Arguments
 def parse_args() -> argparse.Namespace:
@@ -36,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--experiment",     required=True, type=str, help="specific experiment (used for storing checkpoint).")
     parser.add_argument("--split-file",     required=True, type=Path, help="prepared split .hdf5.")
     parser.add_argument("--device",         default=None, type=str, help="e.g. 'cuda:0'; auto-selects cuda if unset.")
+    parser.add_argument("--folds",          default=None, type=str, nargs="+", help="restrict to these fold names, e.g. fold_1; default: all folds in the split file.")
 
     # Parameters
     parser.add_argument("--seed",           default=42, type=int)
@@ -51,7 +54,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dim",     default=128, type=int, help="embedding space dimension.")
     parser.add_argument("--layers",         default=2,   type=int, help="number of Manifold residual blocks.")
     parser.add_argument("--dropout",        default=0.1, type=float)
+
+    # optional class-imbalance ablation
+    parser.add_argument("--weighting",       default="none", choices=["none", "inverse_rank"], type=str)
+    parser.add_argument("--weighting-rank",  default="phylum", choices=list(config.taxonomy_map.keys()), type=str, help="taxonomic rank inverse-weighted when --weighting inverse_rank.")
+    parser.add_argument("--taxonomy-file",   default=None, type=Path, help="genome_id -> taxonomy lookup; required when --weighting inverse_rank.")
     return parser.parse_args()
+
+
+def pair_weights_inverse_rank(leaf_id: np.ndarray, pairs: np.ndarray, taxonomy_file: Path, rank: str) -> np.ndarray:
+    """Pair sampling weight."""
+    df_taxonomy = pd.read_csv(taxonomy_file, sep="\t", compression="gzip", names=["id", "taxonomy"])
+    stripped = strip_genomePrefix(leaf_id)
+    df_rank = get_taxonomy(df_taxonomy, map=config.taxonomy_map, order=list(stripped), level=rank)
+
+    values = df_rank[rank].to_numpy()
+    _, inverse, counts = np.unique(values, return_inverse=True, return_counts=True)
+    genome_weight = 1.0 / counts[inverse]
+    genome_weight = genome_weight / genome_weight.mean()
+
+    return np.sqrt(genome_weight[pairs[:, 0]] * genome_weight[pairs[:, 1]])
 
 # =================================================================
 # Train 1-fold
@@ -61,7 +83,14 @@ def train_fold(fold_name: str, data: dict, eval_loader: DataLoader, args: argpar
     train_split = data[fold_name]["train"]
     val_split   = data[fold_name]["val"]
 
-    train_loader = DataLoader(DataLoader_Manifold(train_split), batch_size=args.batch_size, shuffle=True,  num_workers=args.worker, drop_last=True)
+    train_dataset = DataLoader_Manifold(train_split)
+    if args.weighting == "inverse_rank":
+        weights = pair_weights_inverse_rank(train_split["leaf_id"], train_split["pair"], args.taxonomy_file, args.weighting_rank)
+        sampler = WeightedRandomSampler(weights=torch.from_numpy(weights).double(), num_samples=len(train_dataset), replacement=True)
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=args.worker, drop_last=True)
+        logger.info(f"{fold_name}: inverse_{args.weighting_rank} weighting -- pair weight min={weights.min():.4f} max={weights.max():.4f} mean={weights.mean():.4f}")
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.worker, drop_last=True)
     val_loader   = DataLoader(DataLoader_Manifold(val_split),   batch_size=args.batch_size, shuffle=False, num_workers=args.worker)
 
     dim_input = train_split["feature"].shape[1]
@@ -98,12 +127,16 @@ def train_fold(fold_name: str, data: dict, eval_loader: DataLoader, args: argpar
 # Main
 def main() -> None:
     args = parse_args()
+    if args.weighting == "inverse_rank" and args.taxonomy_file is None:
+        raise ValueError("taxonomy-file is required when --weighting inverse_rank")
+
     logger = create_logger(f"train_{args.label}", output_log=config.root_log)
     torch.manual_seed(args.seed)
 
     # Step 1: Load the whole split once; the eval set is shared across every fold
     data = hdf5.load(args.split_file)
-    fold_names = sorted((k for k in data if k.startswith("fold_")), key=lambda k: int(k.split("_")[1]))
+    all_folds = sorted((k for k in data if k.startswith("fold_")), key=lambda k: int(k.split("_")[1]))
+    fold_names = args.folds if args.folds else all_folds
     eval_loader = DataLoader(DataLoader_Manifold(data["eval"]), batch_size=args.batch_size, shuffle=False, num_workers=args.worker)
 
     # Step 2: Train and evaluate every fold

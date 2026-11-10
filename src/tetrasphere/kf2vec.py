@@ -119,9 +119,7 @@ def divide_trees(input_nwk: Path, subtree_size: int, logger: logging.Logger, con
 
 def check_coverage(file_subtrees: Path, n_backbone: int, logger: logging.Logger) -> None:
     """
-    Warn if divide_tree dropped genomes -- kf2vec excludes TreeCluster's -1/ungrouped
-    leaves from the .subtrees file entirely rather than keeping them as their own group
-    -- and report the resulting subtree sizes.
+    Warn if divide_tree dropped genomes (kf2vec excludes ungrouped leaves during "TreeCluster".
 
     Parameters
     ----------
@@ -263,17 +261,9 @@ def query(input_kf: Path, input_model: Path, input_classes: Path, output_folder:
 
 def load_query_predictions(output_folder: Path) -> pd.DataFrame:
     """
-    Parse every query result in output_folder
-        - output: a long (query_id, backbone_id, pred_dist) table.
-        - procedure: kf2vec's own network is trained in sqrt-distance space (see its losses.py:
-          true_dist = torch.sqrt(true_dist) before the MSE), but its own query.py already undoes
-          this -- pairwise_outputs2 = torch.square(pairwise_outputs) -- before writing
-          apples_input_di_mtrx_query_*.csv. That file is therefore already in true-distance units;
-          no further transform is applied here. (A previous version of this function applied an
-          extra sqrt() on top, which silently undid kf2vec's own correction and put predictions
-          back into sqrt-space -- verified wrong via a direct re-derivation: regressing the
-          extra-sqrt'd prediction against true distance gives slope~0.42 [severely compressed],
-          while the raw file value gives slope~1.02 [effectively unbiased].)
+    Parse every query result in output_folder as .tsv (query_id, backbone_id, pred_dist).
+    NOTE: kf2vec's own network is trained in sqrt-distance space, but its own query.py already undoes. 
+    Therefore nothing is done here.
 
     Parameters
     ----------

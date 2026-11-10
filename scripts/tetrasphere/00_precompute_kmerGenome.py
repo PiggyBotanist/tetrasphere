@@ -49,7 +49,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--transform",          default='clr', choices=["frequency", "clr"], type=str, help="composition transform to apply; raw counts if omitted.")
 
     # Experimental parameters
-    parser.add_argument("--dispersion",         action="store_true", help="flag for adding dispersion.")
     parser.add_argument("--length",             action="store_true", help="flag for adding genome length.")
 
     # Parallelism
@@ -61,7 +60,7 @@ def parse_args() -> argparse.Namespace:
 # Parallelization
 # =================================================================
 _worker_state: dict = {}
-def _init_worker(k: int, folder_representatives: Path, transform: str | None, dispersion: bool, length: bool, min_length: int) -> None:
+def _init_worker(k: int, folder_representatives: Path, transform: str | None, length: bool, min_length: int) -> None:
     """Per-worker-process setup: build one Kmer encoder and cache static config, once per process
     instead of once per genome. Single-threaded torch per worker -- with --workers processes
     already saturating cores, torch's own default thread pool would badly oversubscribe (and its
@@ -71,7 +70,6 @@ def _init_worker(k: int, folder_representatives: Path, transform: str | None, di
         kmer=Kmer(k=k, logger=logging.getLogger("kmer_genome_worker")),
         folder=folder_representatives,
         transform=transform,
-        dispersion=dispersion,
         length=length,
         min_length=min_length,
     )
@@ -85,7 +83,6 @@ def _process_genome(genome: str) -> tuple[str, np.ndarray | None]:
     vector = kmer.vectorize_fasta(
         file_path,
         include_length=_worker_state["length"],
-        include_dispersion=_worker_state["dispersion"],
         transform_kmer=_worker_state["transform"],
         min_length=_worker_state["min_length"],
     )
@@ -117,7 +114,7 @@ def main() -> None:
         with ProcessPoolExecutor(
             max_workers=args.workers,
             initializer=_init_worker,
-            initargs=(args.k, folder_representatives, args.transform, args.dispersion, args.length, args.min_length),
+            initargs=(args.k, folder_representatives, args.transform, args.length, args.min_length),
         ) as pool:
             for genome, vector in tqdm(pool.map(_process_genome, eligible_genomes), total=len(eligible_genomes), desc="Compute k-mer Composition"):
                 if vector is None:

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 # Standard Import
 from abc import ABC, abstractmethod
-import torch.nn as nn
 from torch import Tensor
+import torch.nn as nn
+
 
 # =================================================================
 # Base Loss Function for Generic Training Loop

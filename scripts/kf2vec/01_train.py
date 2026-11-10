@@ -9,7 +9,7 @@ Function: runs the entire kf2vec pipeline
 
 Usage
 -----
-    python scripts/kf2vec/01_train.py --domain ar53 --split-file /bls2/data/gtdb/split/ar53_4mer_clr.hdf5 --output-folder /bls2/data/gtdb/kf2vec/ar53 --input-fasta /bls2/data/gtdb/download/representative_genomes --conda kf2vec
+    python scripts/kf2vec/01_train.py --domain ar53 --split-file <split.hdf5> --output-folder <output_folder> --input-fasta <representative_genomes_dir> --conda kf2vec
 """
 from __future__ import annotations
 

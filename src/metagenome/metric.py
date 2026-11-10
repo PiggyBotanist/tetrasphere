@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 
 # =================================================================
-# More refind quality ladder than just High/Low
+# Define Quality Filter (Metagenomic Binning)
 # =================================================================
 QUALITY_TIERS = {
     f"tier_{letter}": {"completeness": completeness_cutoff / 100, "contamination": contamination_cutoff / 100}
@@ -127,9 +127,7 @@ def contamination(table: pd.DataFrame) -> pd.DataFrame:
     })
 
     result["contamination"] = 1 - result["dominant_bp"] / result["bin_bp"]
-
     return result.reset_index(names="prediction")
-
 
 # =================================================================
 # Per Bin Report (Completeness/Contamination)
